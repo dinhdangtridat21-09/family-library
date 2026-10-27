@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thư viện Family Revit</title>
+<style>
+:root{--bg:#f4f5f7;--panel:#fff;--text:#1d2330;--muted:#677084;--line:#e1e4ea;--accent:#1f6feb;--accent-bg:#e8f0fe;--chip:#eef1f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121418;--panel:#1b1e24;--text:#e5e7eb;--muted:#9299a8;--line:#2b3038;--accent:#5b9cff;--accent-bg:#1e2a3d;--chip:#252a32}}
+:root[data-theme="dark"]{--bg:#121418;--panel:#1b1e24;--text:#e5e7eb;--muted:#9299a8;--line:#2b3038;--accent:#5b9cff;--accent-bg:#1e2a3d;--chip:#252a32}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:14px/1.45 "Segoe UI",system-ui,-apple-system,sans-serif;display:flex;flex-direction:column}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+h1{margin:0;font-size:17px;white-space:nowrap}
+.meta{color:var(--muted);font-size:12px}
+#q{flex:1 1 260px;min-width:0;padding:8px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);font:inherit}
+select{padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);font:inherit}
+.wrap{flex:1;display:flex;min-height:0}
+aside{width:260px;flex:none;background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:8px 0}
+.node{display:flex;align-items:center;gap:4px;padding:4px 10px;cursor:pointer;white-space:nowrap;font-size:13px}
+.node:hover{background:var(--chip)}
+.node.on{background:var(--accent-bg);color:var(--accent);font-weight:600}
+.node .tg{width:14px;text-align:center;color:var(--muted);flex:none}
+.node .lb{overflow:hidden;text-overflow:ellipsis;flex:1}
+.node .ct{color:var(--muted);font-size:11px;font-weight:400}
+.kids{display:none}.kids.open{display:block}
+main{flex:1;overflow:auto;padding:12px 16px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column}
+.card:hover{border-color:var(--accent)}
+.thumb{aspect-ratio:1/1;background:#e9ebee;display:flex;align-items:center;justify-content:center}
+.thumb img{width:100%;height:100%;object-fit:contain}
+.noimg{color:#8a909b;font-size:12px}
+.name{padding:6px 8px;font-size:12.5px;font-weight:600;word-break:break-word;line-height:1.3}
+#more{display:block;margin:16px auto;}
+.empty{grid-column:1/-1;color:var(--muted);text-align:center;padding:60px 0}
+button,.btn{font:inherit;padding:7px 14px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);cursor:pointer;text-decoration:none;display:inline-block}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.off{opacity:.45;pointer-events:none}
+dialog{border:none;border-radius:10px;padding:0;width:min(560px,94vw);background:var(--panel);color:var(--text)}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+.dh{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.dh strong{word-break:break-word}
+.db{padding:16px;display:grid;grid-template-columns:200px 1fr;gap:16px}
+.db .thumb{border-radius:8px}
+table{border-collapse:collapse;font-size:13px;width:100%}
+td{padding:3px 0;vertical-align:top;word-break:break-word}
+td:first-child{color:var(--muted);padding-right:10px;white-space:nowrap}
+.acts{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 16px}
+#menuBtn{display:none}
+@media (max-width:760px){
+  aside{position:fixed;inset:0 30% 0 0;z-index:20;display:none;box-shadow:0 0 30px rgba(0,0,0,.3)}
+  aside.show{display:block}
+  #menuBtn{display:inline-block}
+  .db{grid-template-columns:1fr}
+  .db .thumb{max-width:220px;margin:0 auto;width:100%}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
+}
+</style>
+</head>
+<body>
+<header>
+  <button id="menuBtn">☰ Thư mục</button>
+  <h1>Thư viện Family Revit</h1>
+  <input id="q" type="search" placeholder="Tìm tên family (gõ không dấu cũng được)...">
+  <select id="sort">
+    <option value="name">Tên A→Z</option>
+    <option value="new">Mới sửa gần đây</option>
+  </select>
+</header>
+<div class="wrap">
+  <aside id="tree"></aside>
+  <main>
+    <div class="top"><div class="meta" id="count"></div><div class="meta" id="meta"></div></div>
+    <div class="grid" id="grid"></div>
+    <button id="more">Xem thêm</button>
+  </main>
+</div>
+
+<dialog id="dlg">
+  <div class="dh"><strong id="dTitle"></strong><button onclick="dlg.close()" aria-label="Đóng">✕</button></div>
+  <div class="db">
+    <div class="thumb" id="dThumb"></div>
+    <table id="dInfo"></table>
+  </div>
+  <div class="acts">
+    <a class="btn primary" id="dDown" target="_blank" rel="noopener">⬇ Tải .rfa</a>
+    <a class="btn" id="dFolder" target="_blank" rel="noopener">Mở thư mục trên Drive</a>
+    <button id="dCopy">Copy tên file</button>
+  </div>
+  <div class="meta" id="dNote" style="padding:0 16px 14px"></div>
+</dialog>
+
+<script src="data.js"></script>
+<script src="links.js"></script>
+<script>
+const DATA = window.FAMILY_DATA || {families: []};
+const LINKS = window.DRIVE_LINKS || null;
+const fams = DATA.families;
+const PAGE = 240;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[đĐ]/g, "d").toLowerCase();
+const key = s => String(s ?? "").normalize("NFC").toLowerCase();
+
+// map link Drive theo đường dẫn tương đối
+const driveFiles = {}, driveFolders = {};
+if (LINKS) {
+  for (const k in LINKS.files) driveFiles[key(k)] = LINKS.files[k];
+  for (const k in LINKS.folders) driveFolders[key(k)] = LINKS.folders[k];
+}
+fams.forEach(f => {
+  f._s = norm(f.name + " " + f.folder);
+  f._driveId = driveFiles[key(f.rel)] || "";
+});
+
+let curFolder = "", shown = 0, list = [];
+
+// ---------- cây thư mục ----------
+function buildTree() {
+  const root = {name: "Tất cả", path: "", kids: {}, n: 0};
+  fams.forEach(f => {
+    root.n++;
+    if (f.folder === "(goc)") return;
+    let node = root, acc = "";
+    f.folder.split("/").forEach(part => {
+      acc = acc ? acc + "/" + part : part;
+      node = node.kids[part] ||= {name: part, path: acc, kids: {}, n: 0};
+      node.n++;
+    });
+  });
+  const html = (node, depth) => {
+    const kids = Object.values(node.kids).sort((a, b) => a.name.localeCompare(b.name, "vi"));
+    const has = kids.length > 0;
+    return `<div class="node${node.path === curFolder ? " on" : ""}" data-path="${esc(node.path)}" style="padding-left:${10 + depth * 14}px">
+        <span class="tg">${has ? (depth === 0 ? "▾" : "▸") : ""}</span><span class="lb">${esc(node.name)}</span><span class="ct">${node.n}</span></div>
+      ${has ? `<div class="kids${depth === 0 ? " open" : ""}">${kids.map(k => html(k, depth + 1)).join("")}</div>` : ""}`;
+  };
+  $("tree").innerHTML = html(root, 0);
+}
+$("tree").addEventListener("click", e => {
+  const n = e.target.closest(".node"); if (!n) return;
+  const kids = n.nextElementSibling;
+  if (kids && kids.classList.contains("kids") && (e.target.classList.contains("tg") || n.dataset.path === curFolder)) {
+    kids.classList.toggle("open");
+    n.querySelector(".tg").textContent = kids.classList.contains("open") ? "▾" : "▸";
+    if (n.dataset.path === curFolder) return;
+  }
+  curFolder = n.dataset.path;
+  document.querySelectorAll(".node.on").forEach(x => x.classList.remove("on"));
+  n.classList.add("on");
+  if (kids && kids.classList.contains("kids") && !kids.classList.contains("open")) {
+    kids.classList.add("open"); n.querySelector(".tg").textContent = "▾";
+  }
+  $("tree").classList.remove("show");
+  render();
+});
+$("menuBtn").onclick = () => $("tree").classList.toggle("show");
+
+// ---------- lưới ảnh ----------
+function card(f) {
+  return `<div class="card" data-id="${f.id}" title="${esc(f.rel)}">
+    <div class="thumb">${f.thumb ? `<img loading="lazy" src="${esc(f.thumb)}" alt="">` : '<span class="noimg">Không có ảnh</span>'}</div>
+    <div class="name">${esc(f.name)}</div></div>`;
+}
+function render() {
+  const words = norm($("q").value).split(/\s+/).filter(Boolean);
+  list = fams.filter(f =>
+    (!curFolder || f.folder === curFolder || f.folder.startsWith(curFolder + "/")) &&
+    words.every(w => f._s.includes(w)));
+  if ($("sort").value === "name") list.sort((a, b) => a.name.localeCompare(b.name, "vi"));
+  else list.sort((a, b) => b.mtime - a.mtime);
+  $("count").textContent = `${list.length.toLocaleString("vi")} / ${fams.length.toLocaleString("vi")} family` + (curFolder ? ` · ${curFolder}` : "");
+  shown = 0;
+  $("grid").innerHTML = list.length ? "" : `<div class="empty">${fams.length ? "Không có family nào khớp." : "Chưa có dữ liệu (data.js). Hãy chạy nút Xuất Thư viện trong Revit."}</div>`;
+  more();
+}
+function more() {
+  $("grid").insertAdjacentHTML("beforeend", list.slice(shown, shown + PAGE).map(card).join(""));
+  shown = Math.min(shown + PAGE, list.length);
+  $("more").style.display = shown < list.length ? "block" : "none";
+}
+$("more").onclick = more;
+new IntersectionObserver(es => { if (es[0].isIntersecting && shown < list.length) more(); }, {rootMargin: "600px"}).observe($("more"));
+
+// ---------- chi tiết ----------
+function openFam(f) {
+  $("dTitle").textContent = f.name;
+  $("dThumb").innerHTML = f.thumb ? `<img src="${esc(f.thumb)}" alt="">` : '<span class="noimg">Không có ảnh</span>';
+  $("dInfo").innerHTML = [["Thư mục", f.folder], ["File", f.rel.split("/").pop()], ["Dung lượng", f.size_kb.toLocaleString("vi") + " KB"], ["Sửa lần cuối", f.modified]]
+    .map(r => `<tr><td>${r[0]}</td><td>${esc(r[1])}</td></tr>`).join("");
+  const fid = f._driveId, folderId = driveFolders[key(f.folder === "(goc)" ? "" : f.folder)];
+  $("dDown").href = fid ? `https://drive.google.com/uc?export=download&id=${fid}` : "#";
+  $("dDown").classList.toggle("off", !fid);
+  $("dFolder").href = folderId ? `https://drive.google.com/drive/folders/${folderId}` : "#";
+  $("dFolder").classList.toggle("off", !folderId);
+  $("dNote").textContent = !LINKS ? "Chưa có links.js nên chưa tải được từ Drive."
+    : !fid ? "File này chưa có trên Drive (hoặc links.js chưa cập nhật)." : "";
+  $("dCopy").textContent = "Copy tên file";
+  $("dCopy").onclick = () => navigator.clipboard.writeText(f.rel.split("/").pop()).then(() => $("dCopy").textContent = "Đã copy ✓");
+  history.replaceState(null, "", "#" + f.id);
+  $("dlg").showModal();
+}
+$("dlg").addEventListener("close", () => history.replaceState(null, "", location.pathname + location.search));
+$("grid").addEventListener("click", e => {
+  const c = e.target.closest(".card"); if (c) openFam(fams.find(f => f.id === c.dataset.id));
+});
+
+let t;
+$("q").addEventListener("input", () => { clearTimeout(t); t = setTimeout(render, 150); });
+$("sort").addEventListener("change", render);
+
+$("meta").textContent = fams.length ? `Cập nhật ${DATA.generated}` + (LINKS ? ` · Link Drive ${LINKS.generated}` : "") : "";
+buildTree();
+render();
+const h = location.hash.slice(1), hf = h && fams.find(f => f.id === h);
+if (hf) openFam(hf);
+</script>
+</body>
+</html>
