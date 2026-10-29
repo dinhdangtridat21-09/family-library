@@ -7,7 +7,7 @@
 window.SITE_CONFIG = {
 
   // Ten hien tren tab trinh duyet va dau trang
-  tieuDe: "Thư viện Family Revit",
+  tieuDe: "Family Revit Sharing",
 
   // Anh banner (dat cung thu muc voi index.html). De "" neu khong muon banner.
   banner: "banner.jpg",
