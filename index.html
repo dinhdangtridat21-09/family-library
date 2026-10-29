@@ -27,7 +27,7 @@ aside{width:260px;flex:none;background:var(--panel);border-right:1px solid var(-
 .kids{display:none}.kids.open{display:block}
 main{flex:1;overflow:auto;padding:12px 16px}
 .top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cw),1fr));gap:10px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column}
 .card:hover{border-color:var(--accent)}
 .thumb{aspect-ratio:1/1;background:#e9ebee;display:flex;align-items:center;justify-content:center}
@@ -50,29 +50,35 @@ td{padding:3px 0;vertical-align:top;word-break:break-word}
 td:first-child{color:var(--muted);padding-right:10px;white-space:nowrap}
 .acts{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 16px}
 #menuBtn{display:none}
+#quote{background:var(--accent);color:#fff;padding:7px 16px;font-size:13px;text-align:center;font-style:italic}
+#quote b{font-style:normal;font-weight:600;opacity:.85}
+#banner img{display:block;width:100%;border-radius:10px;margin-bottom:12px}
+.grid{--cw:150px}
 @media (max-width:760px){
   aside{position:fixed;inset:0 30% 0 0;z-index:20;display:none;box-shadow:0 0 30px rgba(0,0,0,.3)}
   aside.show{display:block}
   #menuBtn{display:inline-block}
   .db{grid-template-columns:1fr}
   .db .thumb{max-width:220px;margin:0 auto;width:100%}
-  .grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(calc(var(--cw)*.73),1fr))}
 }
 </style>
 </head>
 <body>
 <header>
   <button id="menuBtn">☰ Thư mục</button>
-  <h1>Thư viện Family Revit</h1>
+  <h1 id="siteTitle">Thư viện Family Revit</h1>
   <input id="q" type="search" placeholder="Tìm tên family (gõ không dấu cũng được)...">
   <select id="sort">
     <option value="name">Tên A→Z</option>
     <option value="new">Mới sửa gần đây</option>
   </select>
 </header>
+<div id="quote" hidden></div>
 <div class="wrap">
   <aside id="tree"></aside>
   <main>
+    <div id="banner"></div>
     <div class="top"><div class="meta" id="count"></div><div class="meta" id="meta"></div></div>
     <div class="grid" id="grid"></div>
     <button id="more">Xem thêm</button>
@@ -93,6 +99,7 @@ td:first-child{color:var(--muted);padding-right:10px;white-space:nowrap}
   <div class="meta" id="dNote" style="padding:0 16px 14px"></div>
 </dialog>
 
+<script src="config.js"></script>
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
@@ -100,6 +107,8 @@ const DATA = window.FAMILY_DATA || {families: []};
 const LINKS = window.DRIVE_LINKS || null;
 const fams = DATA.families;
 const PAGE = 240;
+const CFG = Object.assign({tieuDe: "Thư viện Family Revit", banner: "", bannerCaoToiDa: 0, mauChuDao: "",
+  coAnh: "vua", sapXep: "ten", hienSoLuong: false, cauTruyenCamHung: []}, window.SITE_CONFIG || {});
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[đĐ]/g, "d").toLowerCase();
@@ -118,6 +127,34 @@ fams.forEach(f => {
 
 let curFolder = "", shown = 0, list = [];
 
+// ---------- cấu hình giao diện (config.js) ----------
+function applyConfig() {
+  document.title = CFG.tieuDe;
+  $("siteTitle").textContent = CFG.tieuDe;
+  if (CFG.mauChuDao) {
+    const r = document.documentElement.style;
+    r.setProperty("--accent", CFG.mauChuDao);
+    r.setProperty("--accent-bg", `color-mix(in srgb, ${CFG.mauChuDao} 14%, transparent)`);
+  }
+  $("grid").style.setProperty("--cw", ({nho: "115px", vua: "150px", lon: "210px"})[CFG.coAnh] || "150px");
+  $("sort").value = CFG.sapXep === "moi" ? "new" : "name";
+  if (CFG.banner) {
+    const img = document.createElement("img");
+    img.src = CFG.banner; img.alt = "";
+    if (CFG.bannerCaoToiDa > 0) { img.style.maxHeight = CFG.bannerCaoToiDa + "px"; img.style.objectFit = "cover"; }
+    img.onerror = () => img.remove();
+    $("banner").appendChild(img);
+  }
+  const qs = (CFG.cauTruyenCamHung || []).filter(q => q && q[0]);
+  if (qs.length) {
+    const d = new Date();
+    const day = Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(2026, 0, 1)) / 864e5);
+    const q = qs[((day % qs.length) + qs.length) % qs.length];
+    $("quote").innerHTML = `“${esc(q[0])}”` + (q[1] ? ` <b>— ${esc(q[1])}</b>` : "");
+    $("quote").hidden = false;
+  }
+}
+
 // ---------- cây thư mục ----------
 function buildTree() {
   const root = {name: "Tất cả", path: "", kids: {}, n: 0};
@@ -135,7 +172,7 @@ function buildTree() {
     const kids = Object.values(node.kids).sort((a, b) => a.name.localeCompare(b.name, "vi"));
     const has = kids.length > 0;
     return `<div class="node${node.path === curFolder ? " on" : ""}" data-path="${esc(node.path)}" style="padding-left:${10 + depth * 14}px">
-        <span class="tg">${has ? (depth === 0 ? "▾" : "▸") : ""}</span><span class="lb">${esc(node.name)}</span><span class="ct">${node.n}</span></div>
+        <span class="tg">${has ? (depth === 0 ? "▾" : "▸") : ""}</span><span class="lb">${esc(node.name)}</span>${CFG.hienSoLuong ? `<span class="ct">${node.n}</span>` : ""}</div>
       ${has ? `<div class="kids${depth === 0 ? " open" : ""}">${kids.map(k => html(k, depth + 1)).join("")}</div>` : ""}`;
   };
   $("tree").innerHTML = html(root, 0);
@@ -172,7 +209,7 @@ function render() {
     words.every(w => f._s.includes(w)));
   if ($("sort").value === "name") list.sort((a, b) => a.name.localeCompare(b.name, "vi"));
   else list.sort((a, b) => b.mtime - a.mtime);
-  $("count").textContent = `${list.length.toLocaleString("vi")} / ${fams.length.toLocaleString("vi")} family` + (curFolder ? ` · ${curFolder}` : "");
+  $("count").textContent = (CFG.hienSoLuong ? `${list.length.toLocaleString("vi")} / ${fams.length.toLocaleString("vi")} family` + (curFolder ? " · " : "") : "") + (curFolder || "");
   shown = 0;
   $("grid").innerHTML = list.length ? "" : `<div class="empty">${fams.length ? "Không có family nào khớp." : "Chưa có dữ liệu (data.js). Hãy chạy nút Xuất Thư viện trong Revit."}</div>`;
   more();
@@ -213,6 +250,7 @@ $("q").addEventListener("input", () => { clearTimeout(t); t = setTimeout(render,
 $("sort").addEventListener("change", render);
 
 $("meta").textContent = fams.length ? `Cập nhật ${DATA.generated}` + (LINKS ? ` · Link Drive ${LINKS.generated}` : "") : "";
+applyConfig();
 buildTree();
 render();
 const h = location.hash.slice(1), hf = h && fams.find(f => f.id === h);
